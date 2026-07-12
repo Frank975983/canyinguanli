@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>餐饮管理系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f1f5f9; color: #0f172a; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid #e2e8f0; padding: 20px 12px; position: fixed; height: 100vh; overflow-y: auto; }
+    .logo { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; }
+    .logo-icon { width: 36px; height: 36px; background: #ea580c; color: #fff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .logo h1 { font-size: 15px; }
+    .logo p { font-size: 11px; color: #64748b; }
+    .nav-btn { display: block; width: 100%; text-align: left; padding: 10px 12px; border: none; background: none; border-radius: 8px; cursor: pointer; font-size: 14px; color: #475569; margin-bottom: 4px; }
+    .nav-btn:hover { background: #f8fafc; }
+    .nav-btn.active { background: #fff7ed; color: #c2410c; font-weight: 600; }
+    .main { margin-left: 220px; flex: 1; padding: 28px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .header h2 { font-size: 24px; }
+    .header p { color: #64748b; font-size: 13px; margin-top: 4px; }
+    select, input, textarea { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+    select:focus, input:focus { outline: 2px solid #fb923c; border-color: #fb923c; }
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #334155; }
+    .field { margin-bottom: 12px; }
+    .btn { padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-primary { background: #ea580c; color: #fff; }
+    .btn-primary:hover { background: #c2410c; }
+    .btn-outline { background: #fff; border: 1px solid #e2e8f0; color: #334155; }
+    .btn-danger { background: #fee2e2; color: #b91c1c; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .card h3 { font-size: 16px; margin-bottom: 14px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; }
+    .stat .label { font-size: 13px; color: #64748b; }
+    .stat .value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    th { background: #f8fafc; color: #64748b; font-weight: 600; }
+    tr:hover td { background: #fafafa; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .row { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    .chart-box { height: 300px; position: relative; }
+    .store-select { width: 220px; }
+    .msg { font-size: 13px; color: #16a34a; margin-top: 8px; }
+    .hint { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+    @media (max-width: 900px) {
+      .sidebar { width: 100%; height: auto; position: static; }
+      .main { margin-left: 0; }
+      .layout { flex-direction: column; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">餐</div>
+      <div><h1>餐饮管理系统</h1><p>单页版 · 本地存储</p></div>
+    </div>
+    <button class="nav-btn active" data-page="dashboard">总览</button>
+    <button class="nav-btn" data-page="sales">产品销售</button>
+    <button class="nav-btn" data-page="products">产品信息</button>
+    <button class="nav-btn" data-page="materials">原料库</button>
+    <button class="nav-btn" data-page="purchases">物料采购</button>
+    <button class="nav-btn" data-page="stats">物料统计</button>
+    <button class="nav-btn" data-page="finance">财务对账</button>
+    <button class="nav-btn" data-page="stores">门店管理</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div>
+        <h2 id="pageTitle">经营总览</h2>
+        <p id="pageDesc">数据保存在浏览器本地，双击 index.html 即可使用</p>
+      </div>
+      <select class="store-select" id="storeSelect"></select>
+    </div>
+
+    <!-- 总览 -->
+    <section class="page active" id="page-dashboard">
+      <div class="grid-4" id="dashStats"></div>
+      <div class="card" style="margin-top:20px">
+        <h3>使用说明</h3>
+        <p style="font-size:14px;color:#64748b;line-height:1.8">
+          1. 先在「门店管理」确认门店 → 2. 「原料库」录入原料 → 3. 「产品信息」配置 BOM →
+          4. 「产品销售」录入或导入 Excel → 5. 查看「物料统计」和「财务对账」<br>
+          无需安装、无需服务器，数据存在本机浏览器中。
+        </p>
+      </div>
+    </section>
+
+    <!-- 销售 -->
+    <section class="page" id="page-sales">
+      <div class="grid-2">
+        <div class="card">
+          <h3>手动录入</h3>
+          <div class="field"><label>产品</label><select id="saleProduct"></select></div>
+          <div class="grid-2">
+            <div class="field"><label>日期</label><input type="date" id="saleDate" /></div>
+            <div class="field"><label>销量</label><input type="number" id="saleQty" min="1" oninput="updateSalePreview()" /></div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>默认售价（来自产品信息）</label><input id="saleDefaultPrice" readonly style="background:#f8fafc" /></div>
+            <div class="field"><label>渠道</label><select id="saleChannel"></select></div>
+          </div>
+          <div class="field"><label>本单应收（默认售价×销量）</label><input id="saleExpected" readonly style="background:#f8fafc" /></div>
+          <button class="btn btn-primary" onclick="addSale()">添加销售</button>
+        </div>
+        <div class="card">
+          <h3>Excel 导入</h3>
+          <p class="hint">表格需含：产品名称、销量。可选：日期、渠道</p>
+          <input type="file" id="saleFile" accept=".xlsx,.xls" style="margin:12px 0" />
+          <button class="btn btn-outline" onclick="downloadTemplate()">下载模板</button>
+          <p class="msg" id="importMsg"></p>
+        </div>
+      </div>
+      <div class="card"><h3>销售记录</h3><div id="saleTable"></div></div>
+
+      <div class="card">
+        <h3>渠道实际收入录入</h3>
+        <p class="hint">选择日期范围和渠道，系统自动汇总各产品销量与总默认售价，再录入该批次总实际收入。</p>
+        <div class="grid-3">
+          <div class="field"><label>开始日期</label><input type="date" id="revStart" onchange="updateRevenueFilter()" /></div>
+          <div class="field"><label>结束日期</label><input type="date" id="revEnd" onchange="updateRevenueFilter()" /></div>
+          <div class="field"><label>销售渠道</label><select id="revChannel" onchange="updateRevenueFilter()"></select></div>
+        </div>
+        <div id="revProductBreakdown" style="margin:12px 0"></div>
+        <div class="grid-2">
+          <div class="field"><label>总默认售价（自动计算）</label><input id="revExpected" readonly style="background:#f8fafc;font-weight:600" /></div>
+          <div class="field"><label>总实际收入（元）</label><input type="number" id="revActual" step="0.01" oninput="updateRevenueDiffPreview()" placeholder="录入平台到账总额" /></div>
+        </div>
+        <div class="field"><label>收入偏差（实际 vs 默认售价）</label><input id="revDiffPreview" readonly style="background:#f8fafc" /></div>
+        <button class="btn btn-primary" onclick="saveRevenueEntry()">保存实际收入</button>
+      </div>
+      <div class="card"><h3>已录入的实际收入</h3><div id="revenueEntryTable"></div></div>
+    </section>
+
+    <!-- 产品 -->
+    <section class="page" id="page-products">
+      <div class="card">
+        <h3 id="productFormTitle">添加产品</h3>
+        <div class="grid-2">
+          <div class="field"><label>产品名称</label><input id="prodName" /></div>
+          <div class="field"><label>售价（元）</label><input type="number" id="prodPrice" step="0.0001" /></div>
+        </div>
+        <label>BOM 配方</label>
+        <div id="bomRows"></div>
+        <button class="btn btn-outline" onclick="addBomRow()" style="margin:8px 0">+ 添加原料</button><br>
+        <button class="btn btn-primary" onclick="saveProduct()">保存产品</button>
+        <button class="btn btn-outline" onclick="resetProductForm()" style="margin-left:8px">重置</button>
+      </div>
+      <div class="card"><h3>产品库</h3><div id="productTable"></div></div>
+    </section>
+
+    <!-- 原料 -->
+    <section class="page" id="page-materials">
+      <div class="card">
+        <h3 id="matFormTitle">添加原料</h3>
+        <div class="grid-3">
+          <div class="field"><label>原料名称</label><input id="matName" /></div>
+          <div class="field"><label>单位</label>
+            <select id="matUnit" onchange="updateMatSpecPrice()">
+              <option value="g">g（克）</option>
+              <option value="个">个</option>
+              <option value="张">张</option>
+            </select>
+          </div>
+          <div class="field"><label>核算规格数量</label><input type="number" id="matSpec" value="500" oninput="updateMatSpecPrice()" /></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>损耗率（%）</label><input type="number" id="matLoss" step="1" min="0" max="99" value="2" /></div>
+          <div class="field"><label>价格（元/规格）</label><input type="number" id="matPrice" step="0.0001" oninput="updateMatSpecPrice()" /></div>
+          <div class="field"><label>规格价格（单价÷规格数量）</label><input id="matSpecPrice" readonly style="background:#f8fafc;color:#64748b" placeholder="自动计算" /></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveMaterial()">保存原料</button>
+        <button class="btn btn-outline" onclick="resetMatForm()" style="margin-left:8px">重置</button>
+      </div>
+      <div class="card"><h3>原料列表</h3><div id="matTable"></div></div>
+    </section>
+
+    <!-- 采购 -->
+    <section class="page" id="page-purchases">
+      <div class="card">
+        <h3>新增采购</h3>
+        <p class="hint" style="margin-bottom:12px">只能采购当前门店「原料库」中已登记的原料，需先在原料库添加原料。</p>
+        <div id="purEmptyHint" class="hint" style="display:none;color:#b45309;background:#fffbeb;padding:12px;border-radius:8px;margin-bottom:12px"></div>
+        <div class="grid-2">
+          <div class="field"><label>原料（来自原料库）</label><select id="purMaterial"></select></div>
+          <div class="field"><label>采购日期</label><input type="date" id="purDate" /></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>数量</label><input type="number" id="purQty" step="0.01" /></div>
+          <div class="field"><label>金额（元）</label><input type="number" id="purAmount" step="0.01" /></div>
+        </div>
+        <button class="btn btn-primary" id="purSubmitBtn" onclick="addPurchase()">添加采购</button>
+      </div>
+      <div class="card"><h3>采购记录</h3><div id="purTable"></div></div>
+    </section>
+
+    <!-- 统计 -->
+    <section class="page" id="page-stats">
+      <div class="row" style="margin-bottom:16px">
+        <label>统计维度</label>
+        <select id="statsPeriod" style="width:160px" onchange="renderStats()">
+          <option value="day">按日</option>
+          <option value="week">按周</option>
+          <option value="month" selected>按月</option>
+          <option value="quarter">按季</option>
+          <option value="year">按年</option>
+        </select>
+      </div>
+      <div class="grid-3" id="statsSummary"></div>
+      <div class="grid-2">
+        <div class="card"><h3>消耗对比（理论 vs 实际）</h3><div class="chart-box"><canvas id="barChart"></canvas></div></div>
+        <div class="card"><h3>消耗占比</h3><div class="chart-box"><canvas id="pieChart"></canvas></div></div>
+      </div>
+      <div class="card">
+        <h3>异常消耗预警</h3>
+        <div id="alertTable"></div>
+      </div>
+    </section>
+
+    <!-- 财务 -->
+    <section class="page" id="page-finance">
+      <div class="field" style="max-width:200px;margin-bottom:16px">
+        <label>对账月份</label>
+        <input type="month" id="financeMonth" onchange="renderFinance()" />
+      </div>
+      <div class="grid-4" id="financeSummary"></div>
+      <div class="grid-2">
+        <div class="card"><h3>营收渠道</h3><div id="channelTable"></div></div>
+        <div class="card">
+          <h3>添加费用</h3>
+          <div class="field"><label>费用名称</label><input id="expName" /></div>
+          <div class="grid-2">
+            <div class="field"><label>金额</label><input type="number" id="expAmount" step="0.01" /></div>
+            <div class="field"><label>分摊周期</label>
+              <select id="expPeriod"><option>月</option><option>季</option><option>年</option><option>一次性</option></select>
+            </div>
+          </div>
+          <div class="field"><label>用途</label><input id="expPurpose" /></div>
+          <div class="field"><label>日期</label><input type="date" id="expDate" /></div>
+          <button class="btn btn-primary" onclick="addExpense()">添加费用</button>
+        </div>
+      </div>
+      <div class="card"><h3>收入明细</h3><div id="revenueTable"></div></div>
+      <div class="card"><h3>费用明细</h3><div id="expenseTable"></div></div>
+    </section>
+
+    <!-- 门店 -->
+    <section class="page" id="page-stores">
+      <div class="card">
+        <h3 id="storeFormTitle">添加门店</h3>
+        <div class="grid-2">
+          <div class="field"><label>门店名称</label><input id="storeName" /></div>
+          <div class="field"><label>地址</label><input id="storeAddr" /></div>
+        </div>
+        <label><input type="checkbox" id="storeHQ" /> 设为总店</label><br><br>
+        <button class="btn btn-primary" onclick="saveStore()">保存门店</button>
+        <button class="btn btn-outline" onclick="resetStoreForm()" style="margin-left:8px">重置</button>
+      </div>
+      <div class="card"><h3>门店列表</h3><div id="storeTable"></div></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const CHANNELS = ['堂食收入','美团外卖','淘宝闪购','抖音团购','大众点评'];
+const KEY = 'restaurant_erp';
+let editingProduct = null, editingMaterial = null, editingStore = null;
+let barChartInst = null, pieChartInst = null;
+
+const defaultData = () => ({
+  stores: [
+    { id: 1, name: '总店', address: '总部', isHQ: true },
+    { id: 2, name: '朝阳分店', address: '朝阳区', isHQ: false },
+  ],
+  materials: [
+    { id: 1, storeId: 1, name: '面粉', unit: 'g', spec: 500, loss: 0.02, price: 25, stock: 5000 },
+    { id: 2, storeId: 1, name: '鸡蛋', unit: '个', spec: 1, loss: 0.05, price: 0.4, stock: 200 },
+  ],
+  products: [
+    { id: 1, storeId: 1, name: '招牌面包', price: 18 },
+    { id: 2, storeId: 1, name: '芝士蛋糕', price: 32 },
+  ],
+  bom: [
+    { productId: 1, materialId: 1, qty: 120 },
+    { productId: 1, materialId: 2, qty: 1 },
+    { productId: 2, materialId: 1, qty: 80 },
+    { productId: 2, materialId: 2, qty: 2 },
+  ],
+  purchases: [
+    { id: 1, storeId: 1, materialId: 1, date: today(), qty: 5000, amount: 25 },
+    { id: 2, storeId: 1, materialId: 2, date: today(), qty: 200, amount: 80 },
+  ],
+  sales: [
+    { id: 1, storeId: 1, productId: 1, date: today(), qty: 45, channel: '堂食收入' },
+    { id: 2, storeId: 1, productId: 2, date: today(), qty: 20, channel: '美团外卖' },
+  ],
+  revenueEntries: [
+    { id: 3, storeId: 1, startDate: today(), endDate: today(), channel: '美团外卖', actualRevenue: 580, expectedRevenue: 640 },
+  ],
+  expenses: [
+    { id: 1, storeId: 1, name: '门店租金', amount: 8000, purpose: '房租', period: '月', date: today() },
+  ],
+  thresholds: {},
+  nextId: 100,
+});
+
+function load() {
+  const raw = localStorage.getItem(KEY);
+  if (!raw) { const d = defaultData(); save(d); return d; }
+  const data = JSON.parse(raw);
+  data.materials.forEach(m => {
+    if (m.price === undefined) m.price = 0;
+    else m.price = roundPrice(m.price);
+    if (m.stock === undefined) m.stock = 0;
+  });
+  data.products.forEach(p => {
+    if (p.price !== undefined) p.price = roundPrice(p.price);
+  });
+  if (!data.revenueEntries) data.revenueEntries = [];
+  data.sales.forEach(s => {
+    delete s.actualRevenue;
+    delete s.price;
+  });
+  return data;
+}
+function save(data) { localStorage.setItem(KEY, JSON.stringify(data)); }
+function uid(data) { return ++data.nextId; }
+function today() { return new Date().toISOString().slice(0, 10); }
+function fmt(n) { return '¥' + Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function roundPrice(n) { return Math.round(Number(n) * 10000) / 10000; }
+function fmtPrice(n) { return '¥' + Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
+function calcGrossMargin(price, cost) {
+  const p = roundPrice(price);
+  const c = roundPrice(cost);
+  if (p <= 0) return 0;
+  return roundPrice((p - c) / p);
+}
+function fmtMargin(ratio) { return (roundPrice(ratio) * 100).toFixed(4) + '%'; }
+function pct(n) { return Math.round(n * 100) + '%'; }
+
+function getStoreIds() {
+  const sel = document.getElementById('storeSelect').value;
+  const data = load();
+  return sel === 'all' ? data.stores.map(s => s.id) : [Number(sel)];
+}
+
+/** 采购/录入类操作必须选定具体门店，不能是「全部门店」 */
+function getActiveStoreId() {
+  const sel = document.getElementById('storeSelect').value;
+  return sel === 'all' ? null : Number(sel);
+}
+
+function getStoreMaterials(storeId) {
+  const data = load();
+  return data.materials.filter(m => m.storeId === storeId);
+}
+function filterStore(items) {
+  const ids = getStoreIds();
+  return items.filter(i => ids.includes(i.storeId));
+}
+
+function getSaleProduct(sale, data) {
+  return data.products.find(p => p.id === sale.productId);
+}
+
+function saleExpected(sale, product) {
+  return (product?.price ?? 0) * sale.qty;
+}
+
+function getFilteredSales(data, storeIds, startDate, endDate, channel) {
+  return data.sales.filter(s =>
+    storeIds.includes(s.storeId) &&
+    s.date >= startDate && s.date <= endDate &&
+    s.channel === channel
+  );
+}
+
+function calcExpectedRevenue(sales, data) {
+  return sales.reduce((sum, s) => sum + saleExpected(s, getSaleProduct(s, data)), 0);
+}
+
+function getProductBreakdown(sales, data) {
+  const map = new Map();
+  sales.forEach(s => {
+    const p = getSaleProduct(s, data);
+    if (!p) return;
+    if (!map.has(p.id)) map.set(p.id, { name: p.name, price: p.price, qty: 0, expected: 0 });
+    const item = map.get(p.id);
+    item.qty += s.qty;
+    item.expected += saleExpected(s, p);
+  });
+  return [...map.values()];
+}
+
+function revenueDiffInfo(expected, actual) {
+  const diff = actual - expected;
+  const diffPct = expected > 0 ? Math.round((diff / expected) * 100) : 0;
+  let badge = 'badge-ok', label = '正常';
+  if (diffPct <= -10) { badge = 'badge-danger'; label = '偏差较大'; }
+  else if (diffPct < 0) { badge = 'badge-warn'; label = '略低'; }
+  else if (diffPct > 0) { label = '高于标价'; }
+  return { expected, actual, diff, diffPct, badge, label };
+}
+
+function revenueDiffText(info) {
+  if (info.expected <= 0) return '-';
+  const sign = info.diff >= 0 ? '+' : '';
+  return `${sign}${fmt(info.diff)}（${info.diffPct}%）· ${info.label}`;
+}
+
+function monthOverlaps(entry, month) {
+  const mStart = month + '-01';
+  const mEnd = month + '-31';
+  return entry.startDate <= mEnd && entry.endDate >= mStart;
+}
+
+function saleMatchesEntry(sale, entry) {
+  return sale.storeId === entry.storeId &&
+    sale.channel === entry.channel &&
+    sale.date >= entry.startDate && sale.date <= entry.endDate;
+}
+
+function computeMonthRevenue(data, storeIds, month) {
+  let revenue = 0;
+  const covered = new Set();
+  (data.revenueEntries || []).filter(e => storeIds.includes(e.storeId) && monthOverlaps(e, month)).forEach(entry => {
+    revenue += entry.actualRevenue;
+    data.sales.forEach(s => {
+      if (s.date.startsWith(month) && saleMatchesEntry(s, entry)) covered.add(s.id);
+    });
+  });
+  data.sales.filter(s => storeIds.includes(s.storeId) && s.date.startsWith(month)).forEach(s => {
+    if (!covered.has(s.id)) revenue += saleExpected(s, getSaleProduct(s, data));
+  });
+  return revenue;
+}
+
+function computeChannelRevenue(data, storeIds, month) {
+  const channels = {};
+  CHANNELS.forEach(c => channels[c] = { qty: 0, amt: 0 });
+  const covered = new Set();
+  (data.revenueEntries || []).filter(e => storeIds.includes(e.storeId) && monthOverlaps(e, month)).forEach(entry => {
+    if (channels[entry.channel]) channels[entry.channel].amt += entry.actualRevenue;
+    data.sales.forEach(s => {
+      if (s.date.startsWith(month) && saleMatchesEntry(s, entry)) covered.add(s.id);
+    });
+  });
+  data.sales.filter(s => storeIds.includes(s.storeId) && s.date.startsWith(month)).forEach(s => {
+    if (channels[s.channel]) {
+      channels[s.channel].qty += s.qty;
+      if (!covered.has(s.id)) channels[s.channel].amt += saleExpected(s, getSaleProduct(s, data));
+    }
+  });
+  return channels;
+}
+
+function specPrice(mat) {
+  return mat.spec > 0 ? roundPrice(mat.price / mat.spec) : 0;
+}
+
+function unitCost(mat, purchases) {
+  const ps = purchases.filter(p => p.materialId === mat.id).sort((a,b) => b.date.localeCompare(a.date));
+  const p = ps[0];
+  const loss = Math.min(0.99, Math.max(0, mat.loss));
+  let cost = 0;
+  if (p && p.qty > 0) cost = p.amount / p.qty / (1 - loss);
+  else if (mat.price > 0 && mat.spec > 0) cost = roundPrice(mat.price) / mat.spec / (1 - loss);
+  return roundPrice(cost);
+}
+
+function updateMatSpecPrice() {
+  const price = Number(document.getElementById('matPrice').value) || 0;
+  const spec = Number(document.getElementById('matSpec').value) || 0;
+  const unit = document.getElementById('matUnit').value;
+  const el = document.getElementById('matSpecPrice');
+  if (price > 0 && spec > 0) {
+    el.value = fmtPrice(price / spec) + '/' + unit;
+  } else {
+    el.value = '';
+  }
+}
+
+function productCost(product, data) {
+  const bom = data.bom.filter(b => b.productId === product.id);
+  const mats = data.materials.filter(m => m.storeId === product.storeId);
+  const purs = data.purchases.filter(p => p.storeId === product.storeId);
+  const total = bom.reduce((sum, b) => {
+    const m = mats.find(x => x.id === b.materialId);
+    return sum + (m ? roundPrice(b.qty * unitCost(m, purs)) : 0);
+  }, 0);
+  return roundPrice(total);
+}
+
+function getDateRange(period) {
+  const now = new Date();
+  let start, end = new Date(now);
+  if (period === 'day') { start = new Date(now); }
+  else if (period === 'week') { start = new Date(now); start.setDate(now.getDate() - now.getDay() + 1); }
+  else if (period === 'month') { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+  else if (period === 'quarter') { start = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1); }
+  else { start = new Date(now.getFullYear(), 0, 1); }
+  const f = d => d.toISOString().slice(0, 10);
+  return { start: f(start), end: f(end) };
+}
+
+function inRange(date, start, end) { return date >= start && date <= end; }
+
+function monthlyExpense(exp, month) {
+  const em = exp.date.slice(0, 7);
+  if (exp.period === '一次性' || exp.period === '月') return em === month ? exp.amount : 0;
+  if (exp.period === '季') {
+    const eq = Math.ceil(Number(em.split('-')[1])/3), tq = Math.ceil(Number(month.split('-')[1])/3);
+    return em.split('-')[0] === month.split('-')[0] && eq === tq ? exp.amount/3 : 0;
+  }
+  if (exp.period === '年') return em.split('-')[0] === month.split('-')[0] ? exp.amount/12 : 0;
+  return em === month ? exp.amount : 0;
+}
+
+// ===== 导航 =====
+const PAGE_INFO = {
+  dashboard: ['经营总览', '数据保存在浏览器本地'],
+  sales: ['产品销售', '按渠道批次录入实际收入'],
+  products: ['产品信息', '产品库与 BOM 配方管理'],
+  materials: ['原料库', '原料规格、价格与损耗率管理'],
+  purchases: ['物料采购', '采购记录与库存更新'],
+  stats: ['物料统计', '消耗对比与异常预警'],
+  finance: ['财务对账', '营收、支出与利润'],
+  stores: ['门店管理', '总店与分店管理'],
+};
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.page).classList.add('active');
+    const info = PAGE_INFO[btn.dataset.page];
+    document.getElementById('pageTitle').textContent = info[0];
+    document.getElementById('pageDesc').textContent = info[1];
+    refreshAll();
+  };
+});
+
+function refreshStoreSelect() {
+  const data = load();
+  const sel = document.getElementById('storeSelect');
+  const cur = sel.value || 'all';
+  sel.innerHTML = '<option value="all">全部门店</option>' +
+    data.stores.map(s => `<option value="${s.id}">${s.name}${s.isHQ?'（总店）':''}</option>`).join('');
+  sel.value = cur;
+  sel.onchange = refreshAll;
+}
+
+function refreshAll() {
+  refreshStoreSelect();
+  renderDashboard();
+  renderSales();
+  renderProducts();
+  renderMaterials();
+  renderPurchases();
+  try { renderStats(); } catch (e) { console.warn('统计渲染跳过', e); }
+  renderFinance();
+  renderStores();
+  fillSelects();
+}
+
+// ===== 总览 =====
+function renderDashboard() {
+  const data = load();
+  const ids = getStoreIds();
+  const month = new Date().toISOString().slice(0, 7);
+  const sales = data.sales.filter(s => ids.includes(s.storeId) && s.date.startsWith(month));
+  const revenue = computeMonthRevenue(data, ids, month);
+  const purchases = data.purchases.filter(p => ids.includes(p.storeId) && p.date.startsWith(month));
+  const purAmt = purchases.reduce((s, x) => s + x.amount, 0);
+  const prods = data.products.filter(p => ids.includes(p.storeId)).length;
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat"><div class="label">本月营收</div><div class="value" style="color:#16a34a">${fmt(revenue)}</div></div>
+    <div class="stat"><div class="label">本月销售笔数</div><div class="value">${sales.length}</div></div>
+    <div class="stat"><div class="label">产品数量</div><div class="value">${prods}</div></div>
+    <div class="stat"><div class="label">本月采购</div><div class="value">${fmt(purAmt)}</div></div>`;
+}
+
+// ===== 销售 =====
+function fillSelects() {
+  const data = load();
+  const ids = getStoreIds();
+  const prods = data.products.filter(p => ids.includes(p.storeId));
+  document.getElementById('saleProduct').innerHTML = prods.map(p => `<option value="${p.id}">${p.name}（默认售价 ${fmtPrice(p.price)}）</option>`).join('');
+  document.getElementById('saleProduct').onchange = updateSalePreview;
+  document.getElementById('saleChannel').innerHTML = CHANNELS.map(c => `<option>${c}</option>`).join('');
+  document.getElementById('revChannel').innerHTML = CHANNELS.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('saleDate').value = today();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  document.getElementById('revStart').value = monthStart;
+  document.getElementById('revEnd').value = today();
+  updateSalePreview();
+  updateRevenueFilter();
+  document.getElementById('purDate').value = today();
+  document.getElementById('expDate').value = today();
+  document.getElementById('financeMonth').value = new Date().toISOString().slice(0, 7);
+  fillPurchaseSelect();
+}
+
+function fillPurchaseSelect() {
+  const storeId = getActiveStoreId();
+  const sel = document.getElementById('purMaterial');
+  const hint = document.getElementById('purEmptyHint');
+  const btn = document.getElementById('purSubmitBtn');
+  const qty = document.getElementById('purQty');
+  const amount = document.getElementById('purAmount');
+
+  if (!storeId) {
+    sel.innerHTML = '<option value="">请先选择具体门店</option>';
+    sel.disabled = true;
+    qty.disabled = true;
+    amount.disabled = true;
+    btn.disabled = true;
+    hint.style.display = 'block';
+    hint.textContent = '请先在右上角选择具体门店（不能选「全部门店」），再从该门店原料库中采购。';
+    return;
+  }
+
+  const mats = getStoreMaterials(storeId);
+  if (!mats.length) {
+    sel.innerHTML = '<option value="">原料库为空</option>';
+    sel.disabled = true;
+    qty.disabled = true;
+    amount.disabled = true;
+    btn.disabled = true;
+    hint.style.display = 'block';
+    hint.textContent = '当前门店原料库为空，请先到「原料库」添加原料后再采购。';
+    return;
+  }
+
+  sel.disabled = false;
+  qty.disabled = false;
+  amount.disabled = false;
+  btn.disabled = false;
+  hint.style.display = 'none';
+  sel.innerHTML = mats.map(m => `<option value="${m.id}">${m.name}（${m.spec}${m.unit}）</option>`).join('');
+}
+
+function updateSalePreview() {
+  const data = load();
+  const prod = data.products.find(p => p.id === Number(document.getElementById('saleProduct').value));
+  const qty = Number(document.getElementById('saleQty').value) || 0;
+  const defaultPrice = prod?.price ?? 0;
+  document.getElementById('saleDefaultPrice').value = prod ? fmtPrice(defaultPrice) : '';
+  document.getElementById('saleExpected').value = prod && qty > 0 ? fmt(defaultPrice * qty) : '';
+}
+
+function updateRevenueFilter() {
+  const data = load();
+  const storeId = getActiveStoreId() || getStoreIds()[0];
+  const start = document.getElementById('revStart').value;
+  const end = document.getElementById('revEnd').value;
+  const channel = document.getElementById('revChannel').value;
+  const box = document.getElementById('revProductBreakdown');
+  const expectedEl = document.getElementById('revExpected');
+
+  if (!start || !end || !channel) {
+    box.innerHTML = '';
+    expectedEl.value = '';
+    return;
+  }
+
+  const sales = getFilteredSales(data, [storeId], start, end, channel);
+  const breakdown = getProductBreakdown(sales, data);
+  const expected = calcExpectedRevenue(sales, data);
+  expectedEl.value = fmt(expected);
+
+  if (!sales.length) {
+    box.innerHTML = '<p class="hint" style="color:#b45309">当前筛选条件下无销售记录</p>';
+  } else {
+    box.innerHTML = `<table>
+      <tr><th>产品</th><th>销量</th><th>默认售价</th><th>应收小计</th></tr>
+      ${breakdown.map(p => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${fmtPrice(p.price)}</td><td>${fmt(p.expected)}</td></tr>`).join('')}
+      <tr style="font-weight:600;background:#f8fafc"><td colspan="3">合计</td><td>${fmt(expected)}</td></tr>
+    </table>`;
+  }
+  updateRevenueDiffPreview();
+}
+
+function updateRevenueDiffPreview() {
+  const data = load();
+  const storeId = getActiveStoreId() || getStoreIds()[0];
+  const start = document.getElementById('revStart').value;
+  const end = document.getElementById('revEnd').value;
+  const channel = document.getElementById('revChannel').value;
+  const sales = getFilteredSales(data, [storeId], start, end, channel);
+  const expected = calcExpectedRevenue(sales, data);
+  const actualInput = document.getElementById('revActual').value;
+  const el = document.getElementById('revDiffPreview');
+  if (actualInput === '' || isNaN(Number(actualInput))) { el.value = ''; return; }
+  const info = revenueDiffInfo(expected, Number(actualInput));
+  el.value = revenueDiffText(info);
+  el.style.color = info.diffPct <= -10 ? '#b91c1c' : info.diffPct < 0 ? '#b45309' : '#166534';
+}
+
+function saveRevenueEntry() {
+  const data = load();
+  const storeId = getActiveStoreId() || getStoreIds()[0];
+  const startDate = document.getElementById('revStart').value;
+  const endDate = document.getElementById('revEnd').value;
+  const channel = document.getElementById('revChannel').value;
+  const actualInput = document.getElementById('revActual').value;
+  if (!startDate || !endDate) return alert('请选择日期范围');
+  if (startDate > endDate) return alert('开始日期不能晚于结束日期');
+  if (actualInput === '' || isNaN(Number(actualInput))) return alert('请填写总实际收入');
+
+  const sales = getFilteredSales(data, [storeId], startDate, endDate, channel);
+  if (!sales.length) return alert('当前筛选条件下无销售记录，无法录入');
+
+  const expectedRevenue = calcExpectedRevenue(sales, data);
+  data.revenueEntries.push({
+    id: uid(data), storeId, startDate, endDate, channel,
+    actualRevenue: Number(actualInput), expectedRevenue,
+  });
+  document.getElementById('revActual').value = '';
+  document.getElementById('revDiffPreview').value = '';
+  save(data);
+  renderRevenueEntries();
+  renderDashboard();
+  renderFinance();
+  alert('已保存');
+}
+
+function renderRevenueEntries() {
+  const data = load();
+  const entries = filterStore(data.revenueEntries || []).sort((a,b) => b.startDate.localeCompare(a.startDate));
+  document.getElementById('revenueEntryTable').innerHTML = `<table>
+    <tr><th>日期范围</th><th>渠道</th><th>总默认售价</th><th>总实际收入</th><th>收入偏差</th><th></th></tr>
+    ${entries.map(e => {
+      const info = revenueDiffInfo(e.expectedRevenue, e.actualRevenue);
+      return `<tr><td>${e.startDate} ~ ${e.endDate}</td><td>${e.channel}</td>
+        <td>${fmt(e.expectedRevenue)}</td><td>${fmt(e.actualRevenue)}</td>
+        <td><span class="badge ${info.badge}">${revenueDiffText(info)}</span></td>
+        <td><button class="btn btn-danger" onclick="delRevenueEntry(${e.id})">删</button></td></tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">暂无录入，请在上方筛选后录入</td></tr>'}
+  </table>`;
+}
+
+function delRevenueEntry(id) {
+  if (!confirm('确定删除该实际收入记录？')) return;
+  const data = load();
+  data.revenueEntries = (data.revenueEntries || []).filter(e => e.id !== id);
+  save(data);
+  renderRevenueEntries();
+  renderDashboard();
+  renderFinance();
+}
+
+function addSale() {
+  const data = load();
+  const prod = data.products.find(p => p.id === Number(document.getElementById('saleProduct').value));
+  if (!prod) return alert('请先添加产品');
+  const qty = Number(document.getElementById('saleQty').value);
+  if (!qty || qty <= 0) return alert('请填写销量');
+  data.sales.push({
+    id: uid(data), storeId: prod.storeId,
+    productId: prod.id, date: document.getElementById('saleDate').value,
+    qty, channel: document.getElementById('saleChannel').value,
+  });
+  document.getElementById('saleQty').value = '';
+  save(data);
+  renderSales();
+  renderDashboard();
+  updateSalePreview();
+  updateRevenueFilter();
+}
+
+function renderSales() {
+  const data = load();
+  const sales = filterStore(data.sales).sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('saleTable').innerHTML = `<table>
+    <tr><th>日期</th><th>产品</th><th>渠道</th><th>销量</th><th>默认售价</th><th>应收</th><th></th></tr>
+    ${sales.map(s => {
+      const p = getSaleProduct(s, data);
+      const expected = saleExpected(s, p);
+      return `<tr><td>${s.date}</td><td>${p?.name||'-'}</td><td>${s.channel}</td><td>${s.qty}</td>
+        <td>${p ? fmtPrice(p.price) : '-'}</td><td>${fmt(expected)}</td>
+        <td><button class="btn btn-danger" onclick="delItem('sales',${s.id})">删</button></td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">暂无数据</td></tr>'}
+  </table>`;
+  renderRevenueEntries();
+  updateRevenueFilter();
+}
+
+document.getElementById('saleFile').onchange = function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const wb = XLSX.read(ev.target.result, { type: 'binary' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    const data = load();
+    let n = 0, errs = [];
+    rows.forEach((row, i) => {
+      const name = String(row['产品名称']||row['产品']||'').trim();
+      const qty = Number(row['销量']||row['数量']||0);
+      const date = String(row['日期']||today()).slice(0,10);
+      const channel = String(row['渠道']||'堂食收入');
+      const prod = data.products.find(p => p.name === name);
+      if (!name) { errs.push(i+2); return; }
+      if (!prod) { errs.push(i+2); return; }
+      if (qty <= 0) return;
+      data.sales.push({ id: uid(data), storeId: prod.storeId, productId: prod.id, date, qty, channel });
+      n++;
+    });
+    save(data);
+    document.getElementById('importMsg').textContent = `导入 ${n} 条` + (errs.length ? `，${errs.length} 行跳过` : '');
+    renderSales(); renderDashboard(); updateRevenueFilter();
+  };
+  reader.readAsBinaryString(file);
+};
+
+function downloadTemplate() {
+  const ws = XLSX.utils.json_to_sheet([
+    { 产品名称:'招牌面包', 销量:45, 日期:today(), 渠道:'堂食收入' },
+    { 产品名称:'芝士蛋糕', 销量:20, 日期:today(), 渠道:'美团外卖' },
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '销售数据');
+  XLSX.writeFile(wb, '销售导入模板.xlsx');
+}
+
+// ===== 产品 =====
+function addBomRow(mid='', qty='') {
+  const data = load();
+  const mats = filterStore(data.materials);
+  document.getElementById('bomRows').insertAdjacentHTML('beforeend', `
+    <div class="row bom-row" style="margin-bottom:8px">
+      <select class="bom-mat" style="flex:2">${mats.map(m=>`<option value="${m.id}" ${m.id==mid?'selected':''}>${m.name}(${m.unit})</option>`).join('')}</select>
+      <input class="bom-qty" type="number" step="0.01" placeholder="用量" value="${qty}" style="flex:1">
+      <button class="btn btn-danger" onclick="this.parentElement.remove()">删</button>
+    </div>`);
+}
+
+function saveProduct() {
+  const data = load();
+  const ids = getStoreIds();
+  const storeId = ids[0];
+  const name = document.getElementById('prodName').value.trim();
+  const price = roundPrice(document.getElementById('prodPrice').value);
+  if (!name || !price) return alert('请填写名称和售价');
+  const bomRows = [...document.querySelectorAll('.bom-row')].map(r => ({
+    materialId: Number(r.querySelector('.bom-mat').value),
+    qty: Number(r.querySelector('.bom-qty').value),
+  })).filter(b => b.qty > 0);
+
+  if (editingProduct) {
+    const p = data.products.find(x => x.id === editingProduct);
+    p.name = name; p.price = price;
+    data.bom = data.bom.filter(b => b.productId !== editingProduct);
+  } else {
+    const id = uid(data);
+    data.products.push({ id, storeId, name, price });
+    editingProduct = id;
+  }
+  bomRows.forEach(b => data.bom.push({ productId: editingProduct, materialId: b.materialId, qty: b.qty }));
+  save(data); resetProductForm(); renderProducts();
+}
+
+function resetProductForm() {
+  editingProduct = null;
+  document.getElementById('productFormTitle').textContent = '添加产品';
+  document.getElementById('prodName').value = '';
+  document.getElementById('prodPrice').value = '';
+  document.getElementById('bomRows').innerHTML = '';
+  addBomRow();
+}
+
+function editProduct(id) {
+  const data = load();
+  const p = data.products.find(x => x.id === id);
+  editingProduct = id;
+  document.getElementById('productFormTitle').textContent = '编辑产品';
+  document.getElementById('prodName').value = p.name;
+  document.getElementById('prodPrice').value = p.price;
+  document.getElementById('bomRows').innerHTML = '';
+  data.bom.filter(b => b.productId === id).forEach(b => addBomRow(b.materialId, b.qty));
+  if (!data.bom.filter(b => b.productId === id).length) addBomRow();
+}
+
+function renderProducts() {
+  const data = load();
+  const prods = filterStore(data.products);
+  document.getElementById('productTable').innerHTML = `<table>
+    <tr><th>产品</th><th>售价</th><th>成本</th><th>毛利率</th><th>BOM</th><th></th></tr>
+    ${prods.map(p => {
+      const cost = productCost(p, data);
+      const margin = calcGrossMargin(p.price, cost);
+      const bom = data.bom.filter(b => b.productId === p.id).map(b => {
+        const m = data.materials.find(x => x.id === b.materialId);
+        return `${m?.name||'?'} ${b.qty}${m?.unit||''}`;
+      }).join(' + ');
+      return `<tr><td>${p.name}</td><td>${fmtPrice(p.price)}</td><td>${fmtPrice(cost)}</td>
+        <td><span class="badge ${margin>0.3?'badge-ok':'badge-warn'}">${fmtMargin(margin)}</span></td>
+        <td style="font-size:12px;color:#64748b">${bom||'-'}</td>
+        <td><button class="btn btn-outline" onclick="editProduct(${p.id})">编</button>
+        <button class="btn btn-danger" onclick="delProduct(${p.id})">删</button></td></tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">暂无产品</td></tr>'}
+  </table>`;
+}
+
+function delProduct(id) {
+  const data = load();
+  data.products = data.products.filter(p => p.id !== id);
+  data.bom = data.bom.filter(b => b.productId !== id);
+  save(data); renderProducts();
+}
+
+// ===== 原料 =====
+function saveMaterial() {
+  const data = load();
+  const storeId = getActiveStoreId() || getStoreIds()[0];
+  const item = {
+    storeId,
+    name: document.getElementById('matName').value.trim(),
+    unit: document.getElementById('matUnit').value,
+    spec: Number(document.getElementById('matSpec').value),
+    loss: Number(document.getElementById('matLoss').value) / 100,
+    price: roundPrice(document.getElementById('matPrice').value),
+  };
+  if (!item.name) return alert('请填写原料名称');
+  if (!item.spec || item.spec <= 0) return alert('请填写有效的规格数量');
+  if (!item.price || item.price <= 0) return alert('请填写价格');
+  if (editingMaterial) {
+    const existing = data.materials.find(m => m.id === editingMaterial);
+    Object.assign(existing, item);
+  } else {
+    data.materials.push({ id: uid(data), stock: 0, ...item });
+  }
+  save(data); resetMatForm(); renderMaterials(); fillPurchaseSelect();
+}
+
+function resetMatForm() {
+  editingMaterial = null;
+  document.getElementById('matFormTitle').textContent = '添加原料';
+  document.getElementById('matName').value = '';
+  document.getElementById('matUnit').value = 'g';
+  document.getElementById('matSpec').value = '500';
+  document.getElementById('matLoss').value = '2';
+  document.getElementById('matPrice').value = '';
+  document.getElementById('matSpecPrice').value = '';
+}
+
+function editMaterial(id) {
+  const m = load().materials.find(x => x.id === id);
+  editingMaterial = id;
+  document.getElementById('matFormTitle').textContent = '编辑原料';
+  document.getElementById('matName').value = m.name;
+  document.getElementById('matUnit').value = ['g','个','张'].includes(m.unit) ? m.unit : 'g';
+  document.getElementById('matSpec').value = m.spec;
+  document.getElementById('matLoss').value = Math.round(m.loss * 100);
+  document.getElementById('matPrice').value = m.price || '';
+  updateMatSpecPrice();
+}
+
+function renderMaterials() {
+  const data = load();
+  const mats = filterStore(data.materials);
+  document.getElementById('matTable').innerHTML = `<table>
+    <tr><th>原料</th><th>规格</th><th>损耗率</th><th>价格</th><th>规格价格</th><th>核算单价</th><th></th></tr>
+    ${mats.map(m => {
+      const purs = data.purchases.filter(p => p.storeId === m.storeId);
+      const uc = unitCost(m, purs);
+      const sp = specPrice(m);
+      return `<tr><td>${m.name}</td><td>${m.spec}${m.unit}</td><td>${pct(m.loss)}</td>
+        <td>${fmtPrice(m.price)}/${m.spec}${m.unit}</td>
+        <td>${fmtPrice(sp)}/${m.unit}</td>
+        <td>${fmt(uc)}/${m.unit}</td>
+        <td><button class="btn btn-outline" onclick="editMaterial(${m.id})">编</button>
+        <button class="btn btn-danger" onclick="delItem('materials',${m.id})">删</button></td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">暂无原料</td></tr>'}
+  </table>`;
+}
+
+// ===== 采购 =====
+function addPurchase() {
+  const data = load();
+  const storeId = getActiveStoreId();
+  if (!storeId) return alert('请先在右上角选择具体门店，不能在全部门店视图下采购。');
+
+  const matId = Number(document.getElementById('purMaterial').value);
+  const mat = data.materials.find(m => m.id === matId && m.storeId === storeId);
+  if (!mat) return alert('只能采购当前门店原料库中已存在的原料，请先到「原料库」添加。');
+
+  const qty = Number(document.getElementById('purQty').value);
+  const amount = Number(document.getElementById('purAmount').value);
+  if (!qty || !amount) return alert('请填写数量和金额');
+
+  data.purchases.push({
+    id: uid(data), storeId, materialId: matId,
+    date: document.getElementById('purDate').value, qty, amount,
+  });
+  mat.stock += qty;
+  save(data);
+  document.getElementById('purQty').value = '';
+  document.getElementById('purAmount').value = '';
+  renderPurchases();
+  renderMaterials();
+  renderDashboard();
+}
+
+function renderPurchases() {
+  fillPurchaseSelect();
+  const data = load();
+  const purs = filterStore(data.purchases).sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('purTable').innerHTML = `<table>
+    <tr><th>日期</th><th>原料</th><th>数量</th><th>金额</th><th>单价</th><th>状态</th><th></th></tr>
+    ${purs.map(p => {
+      const m = data.materials.find(x => x.id === p.materialId);
+      const inLibrary = !!m;
+      return `<tr><td>${p.date}</td><td>${m?.name||'（原料已删除）'}</td><td>${p.qty}${m?m.unit:''}</td><td>${fmt(p.amount)}</td>
+        <td>${fmt(p.amount/p.qty)}</td>
+        <td>${inLibrary ? '<span class="badge badge-ok">原料库中</span>' : '<span class="badge badge-warn">原料已移除</span>'}</td>
+        <td><button class="btn btn-danger" onclick="delPurchase(${p.id})">删</button></td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">暂无记录</td></tr>'}
+  </table>`;
+}
+
+function delPurchase(id) {
+  const data = load();
+  const p = data.purchases.find(x => x.id === id);
+  if (p) { const m = data.materials.find(x => x.id === p.materialId); if (m) m.stock -= p.qty; }
+  data.purchases = data.purchases.filter(x => x.id !== id);
+  save(data); renderPurchases(); renderMaterials();
+}
+
+// ===== 统计 =====
+function renderStats() {
+  const data = load();
+  const ids = getStoreIds();
+  const period = document.getElementById('statsPeriod').value;
+  const { start, end } = getDateRange(period);
+  const month = new Date().toISOString().slice(0, 7);
+
+  const mats = data.materials.filter(m => ids.includes(m.storeId));
+  const sales = data.sales.filter(s => ids.includes(s.storeId) && inRange(s.date, start, end));
+  const purs = data.purchases.filter(p => ids.includes(p.storeId));
+  const periodPurs = purs.filter(p => inRange(p.date, start, end));
+  const monthPurs = purs.filter(p => p.date.startsWith(month));
+
+  const monthlyAmt = monthPurs.reduce((s,p) => s + p.amount, 0);
+  let invVal = 0;
+  mats.forEach(m => { invVal += m.stock * (1 - m.loss) * unitCost(m, purs); });
+
+  const theoretical = {};
+  sales.forEach(s => {
+    data.bom.filter(b => b.productId === s.productId).forEach(b => {
+      theoretical[b.materialId] = (theoretical[b.materialId]||0) + b.qty * s.qty;
+    });
+  });
+
+  const actual = {};
+  mats.forEach(m => {
+    const purchased = periodPurs.filter(p => p.materialId === m.id).reduce((s,p) => s+p.qty, 0);
+    const theo = theoretical[m.id] || 0;
+    actual[m.id] = Math.max(0, purchased + theo * 0.1);
+  });
+
+  let tTotal = 0, aTotal = 0;
+  mats.forEach(m => { tTotal += theoretical[m.id]||0; aTotal += actual[m.id]||0; });
+  const lossActual = tTotal > 0 ? Math.max(0, (aTotal - tTotal) / tTotal) : 0;
+
+  document.getElementById('statsSummary').innerHTML = `
+    <div class="stat"><div class="label">本月采购金额</div><div class="value">${fmt(monthlyAmt)}</div></div>
+    <div class="stat"><div class="label">库存价值（去损耗）</div><div class="value">${fmt(invVal)}</div></div>
+    <div class="stat"><div class="label">实际损耗率</div><div class="value">${pct(lossActual)}</div></div>`;
+
+  const chartData = mats.filter(m => (theoretical[m.id]||0) > 0 || (actual[m.id]||0) > 0);
+  const labels = chartData.map(m => m.name);
+  const theoData = chartData.map(m => +(theoretical[m.id]||0).toFixed(2));
+  const actData = chartData.map(m => +(actual[m.id]||0).toFixed(2));
+
+  if (typeof Chart !== 'undefined') {
+    if (barChartInst) barChartInst.destroy();
+    barChartInst = new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label: '理论消耗', data: theoData, backgroundColor: '#f97316' },
+        { label: '实际消耗', data: actData, backgroundColor: '#3b82f6' },
+      ]},
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+
+    if (pieChartInst) pieChartInst.destroy();
+    pieChartInst = new Chart(document.getElementById('pieChart'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: actData, backgroundColor: ['#f97316','#3b82f6','#10b981','#8b5cf6','#ec4899','#14b8a6'] }] },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+  }
+
+  document.getElementById('alertTable').innerHTML = `<table>
+    <tr><th>物料</th><th>实际消耗</th><th>临界值</th><th>状态</th><th>设置临界值</th></tr>
+    ${mats.map(m => {
+      const act = actual[m.id]||0;
+      const key = m.storeId + '_' + m.id;
+      const threshold = data.thresholds[key] ?? (act * 1.2 || 100);
+      const warn = act > threshold;
+      return `<tr><td>${m.name}</td><td>${act.toFixed(1)} ${m.unit}</td><td>${threshold} ${m.unit}</td>
+        <td><span class="badge ${warn?'badge-danger':'badge-ok'}">${warn?'异常':'正常'}</span></td>
+        <td><input type="number" id="th_${key}" value="${threshold}" style="width:80px;display:inline">
+        <button class="btn btn-outline" onclick="saveThreshold('${key}')">保存</button></td></tr>`;
+    }).join('')}
+  </table>`;
+}
+
+function saveThreshold(key) {
+  const data = load();
+  data.thresholds[key] = Number(document.getElementById('th_' + key).value);
+  save(data); renderStats();
+}
+
+// ===== 财务 =====
+function renderFinance() {
+  const data = load();
+  const ids = getStoreIds();
+  const month = document.getElementById('financeMonth').value;
+  const sales = data.sales.filter(s => ids.includes(s.storeId) && s.date.startsWith(month));
+  const revenue = computeMonthRevenue(data, ids, month);
+
+  let theoExp = 0;
+  sales.forEach(s => {
+    const p = data.products.find(x => x.id === s.productId);
+    if (p) theoExp += productCost(p, data) * s.qty;
+  });
+
+  const purs = data.purchases.filter(p => ids.includes(p.storeId) && p.date.startsWith(month));
+  const purExp = purs.reduce((s,p) => s + p.amount, 0);
+  const exps = data.expenses.filter(e => ids.includes(e.storeId));
+  const otherExp = exps.reduce((s,e) => s + monthlyExpense(e, month), 0);
+  const actualExp = purExp + otherExp;
+  const profit = revenue - actualExp;
+  const margin = revenue > 0 ? profit / revenue : 0;
+
+  document.getElementById('financeSummary').innerHTML = `
+    <div class="stat"><div class="label">总营收</div><div class="value" style="color:#16a34a">${fmt(revenue)}</div></div>
+    <div class="stat"><div class="label">理论支出</div><div class="value">${fmt(theoExp)}</div></div>
+    <div class="stat"><div class="label">实际支出</div><div class="value" style="color:#dc2626">${fmt(actualExp)}</div></div>
+    <div class="stat"><div class="label">利润率</div><div class="value">${pct(margin)}</div></div>`;
+
+  const channels = computeChannelRevenue(data, ids, month);
+
+  document.getElementById('channelTable').innerHTML = `<table>
+    <tr><th>渠道</th><th>销量</th><th>收入</th></tr>
+    ${CHANNELS.map(c => `<tr><td>${c}</td><td>${channels[c].qty}</td><td>${fmt(channels[c].amt)}</td></tr>`).join('')}
+  </table>`;
+
+  const entries = (data.revenueEntries || []).filter(e => ids.includes(e.storeId) && monthOverlaps(e, month));
+  const productMap = getProductBreakdown(sales, data);
+
+  document.getElementById('revenueTable').innerHTML = `
+    <h4 style="margin-bottom:10px;font-size:14px">各产品销量与应收（${month}）</h4>
+    <table style="margin-bottom:20px">
+      <tr><th>产品</th><th>销量</th><th>默认售价</th><th>应收合计</th></tr>
+      ${productMap.map(p => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${fmtPrice(p.price)}</td><td>${fmt(p.expected)}</td></tr>`).join('')
+        || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">暂无</td></tr>'}
+    </table>
+    <h4 style="margin-bottom:10px;font-size:14px">已录入的渠道实际收入</h4>
+    <table>
+      <tr><th>日期范围</th><th>渠道</th><th>总默认售价</th><th>总实际收入</th><th>偏差</th></tr>
+      ${entries.map(e => {
+        const info = revenueDiffInfo(e.expectedRevenue, e.actualRevenue);
+        return `<tr><td>${e.startDate}~${e.endDate}</td><td>${e.channel}</td>
+          <td>${fmt(e.expectedRevenue)}</td><td>${fmt(e.actualRevenue)}</td>
+          <td><span class="badge ${info.badge}">${revenueDiffText(info)}</span></td></tr>`;
+      }).join('') || '<tr><td colspan="5" style="text-align:center;color:#94a3b8">暂无，请在销售页按渠道录入</td></tr>'}
+    </table>`;
+
+  document.getElementById('expenseTable').innerHTML = `<table>
+    <tr><th>名称</th><th>总计</th><th>本月分摊</th><th>用途</th><th>周期</th><th></th></tr>
+    ${exps.map(e => `<tr><td>${e.name}</td><td>${fmt(e.amount)}</td><td>${fmt(monthlyExpense(e,month))}</td>
+      <td>${e.purpose||'-'}</td><td>${e.period}</td>
+      <td><button class="btn btn-danger" onclick="delItem('expenses',${e.id})">删</button></td></tr>`).join('')
+      || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">暂无</td></tr>'}
+  </table>`;
+}
+
+function addExpense() {
+  const data = load();
+  const ids = getStoreIds();
+  data.expenses.push({
+    id: uid(data), storeId: ids[0],
+    name: document.getElementById('expName').value,
+    amount: Number(document.getElementById('expAmount').value),
+    purpose: document.getElementById('expPurpose').value,
+    period: document.getElementById('expPeriod').value,
+    date: document.getElementById('expDate').value,
+  });
+  save(data); renderFinance();
+}
+
+// ===== 门店 =====
+function saveStore() {
+  const data = load();
+  const item = {
+    name: document.getElementById('storeName').value.trim(),
+    address: document.getElementById('storeAddr').value,
+    isHQ: document.getElementById('storeHQ').checked,
+  };
+  if (!item.name) return alert('请填写门店名称');
+  if (item.isHQ) data.stores.forEach(s => s.isHQ = false);
+  if (editingStore) Object.assign(data.stores.find(s => s.id === editingStore), item);
+  else data.stores.push({ id: uid(data), ...item });
+  save(data); resetStoreForm(); renderStores(); refreshStoreSelect();
+}
+
+function resetStoreForm() {
+  editingStore = null;
+  document.getElementById('storeFormTitle').textContent = '添加门店';
+  document.getElementById('storeName').value = '';
+  document.getElementById('storeAddr').value = '';
+  document.getElementById('storeHQ').checked = false;
+}
+
+function editStore(id) {
+  const s = load().stores.find(x => x.id === id);
+  editingStore = id;
+  document.getElementById('storeFormTitle').textContent = '编辑门店';
+  document.getElementById('storeName').value = s.name;
+  document.getElementById('storeAddr').value = s.address;
+  document.getElementById('storeHQ').checked = s.isHQ;
+}
+
+function renderStores() {
+  const data = load();
+  document.getElementById('storeTable').innerHTML = `<table>
+    <tr><th>门店</th><th>类型</th><th>地址</th><th></th></tr>
+    ${data.stores.map(s => `<tr><td>${s.name}</td>
+      <td><span class="badge ${s.isHQ?'badge-warn':'badge-ok'}">${s.isHQ?'总店':'分店'}</span></td>
+      <td>${s.address||'-'}</td>
+      <td><button class="btn btn-outline" onclick="editStore(${s.id})">编</button>
+      ${!s.isHQ?`<button class="btn btn-danger" onclick="delItem('stores',${s.id})">删</button>`:''}</td></tr>`).join('')}
+  </table>`;
+}
+
+// ===== 通用删除 =====
+function delItem(type, id) {
+  if (!confirm('确定删除？')) return;
+  const data = load();
+  if (type === 'materials') {
+    const hasPurchase = data.purchases.some(p => p.materialId === id);
+    if (hasPurchase) return alert('该原料已有采购记录，无法删除。请保留原料或先删除相关采购记录。');
+    const inBom = data.bom.some(b => b.materialId === id);
+    if (inBom) return alert('该原料已被产品 BOM 引用，无法删除。请先从产品配方中移除。');
+  }
+  if (type === 'stores') {
+    data.stores = data.stores.filter(s => s.id !== id);
+    ['materials','products','purchases','sales','expenses','revenueEntries'].forEach(k => {
+      data[k] = data[k].filter(x => x.storeId !== id);
+    });
+  } else {
+    data[type] = data[type].filter(x => x.id !== id);
+  }
+  save(data); refreshAll();
+}
+
+// ===== 初始化 =====
+resetProductForm();
+refreshAll();
+</script>
+</body>
+</html>
